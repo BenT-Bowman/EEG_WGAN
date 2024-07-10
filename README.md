@@ -11,7 +11,7 @@ Script only accepts .dat files. Split Control and Patient by adding a capital 'P
 
 ## Run WGAN_Training
 Script exclusively loads .npy files. Data is of shape (samples, num_channels, seq_length)
-`python ./WGAN_Training.py --file_data_path <path to .dat files>`
+`python ./WGAN_Training.py --data_file_path <path to .dat files>`
 
 ## Generate Data using model
 Modify path variables in generate_data.ipynb. Run all.

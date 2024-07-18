@@ -35,15 +35,15 @@ data_tensor = data_tensor.view(data_tensor.size(0), -1)
  
 dataset = TensorDataset(data_tensor)
  
-batch_size = 128  
+batch_size = 64
 train_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
 
 
 LAMBDA_GP = 10 
-num_epochs = 2_000
+num_epochs = 5
 latent_vector_size = 100 
-critic_repeat = 5
+critic_repeat = 1
 
 ##
 # Training Prep
@@ -71,8 +71,10 @@ def gradient_penalty(critic, real_samples, fake_samples, device='cuda'):
 
     return gradient_penalty
 
+# generator = Generator(seq_length=500).to(device)
+# critic =  Critic(seq_length=500).to(device)
 generator = Generator(seq_length=500).to(device)
-critic =  Critic(seq_length=500).to(device)
+critic =  Critic().to(device)
 
 d_lr = 0.0001
 g_lr = 0.0001

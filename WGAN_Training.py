@@ -17,11 +17,12 @@ def argparse_helper():
     parser.add_argument('--num_epochs', type=int, required=False, default=100, help='Number of epochs to train models for.')
     parser.add_argument('--gen_lr', type=float, required=False,    default=0.0001)
     parser.add_argument('--critic_lr', type=float, required=False, default=0.0001)
+    parser.add_argument('--sleep', type=int, required=False, default=None, help='In case you don\'t want to cook your computer during long training loops.')
     args = parser.parse_args()
 
-    return args.data_file_path, args.model_path, args.num_epochs, args.gen_lr, args.critic_lr
+    return args.data_file_path, args.model_path, args.num_epochs, args.gen_lr, args.critic_lr, args.sleep
 
-file_path, model_path, num_epochs, gen_lr, critic_lr = argparse_helper()
+file_path, model_path, num_epochs, gen_lr, critic_lr, sleep_time = argparse_helper()
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
 ##
@@ -144,8 +145,9 @@ try:
             avg_g.append(g_loss.item())
             pbar.set_description(f"Epoch {epoch} Gen loss: {g_loss.item()} Critic loss: {d_loss.item()} ")
         print(f"\033[31mEpoch {epoch} Gen loss: {sum(avg_g)/len(avg_g)} Critic loss: {sum(avg_d)/len(avg_d)} \033[0m")
-        print(f"Sleeping for {s_time}")
-        sleep(s_time)
+        if sleep_time is not None:
+            print(f"Sleeping for {sleep_time}")
+            sleep(sleep_time)
 finally:
     import os
     while True:

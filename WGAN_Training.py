@@ -15,8 +15,8 @@ def argparse_helper():
     parser.add_argument('--data_file_path', type=str, required=True, help='Path to the input file. Data should be of .npy file type.')
     parser.add_argument('--model_path', type=str, required=False, default=None, help='Path to existing saved model.')
     parser.add_argument('--num_epochs', type=int, required=False, default=100, help='Number of epochs to train models for.')
-    parser.add_argument('--gen_lr', type=int, required=False,    default=0.0001)
-    parser.add_argument('--critic_lr', type=int, required=False, default=0.0001)
+    parser.add_argument('--gen_lr', type=float, required=False,    default=0.0001)
+    parser.add_argument('--critic_lr', type=float, required=False, default=0.0001)
     args = parser.parse_args()
 
     return args.data_file_path, args.model_path, args.num_epochs, args.gen_lr, args.critic_lr

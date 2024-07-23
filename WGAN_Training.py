@@ -15,11 +15,13 @@ def argparse_helper():
     parser.add_argument('--data_file_path', type=str, required=True, help='Path to the input file. Data should be of .npy file type.')
     parser.add_argument('--model_path', type=str, required=False, default=None, help='Path to existing saved model.')
     parser.add_argument('--num_epochs', type=int, required=False, default=100, help='Number of epochs to train models for.')
+    parser.add_argument('--gen_lr', type=int, required=False,    default=0.0001)
+    parser.add_argument('--critic_lr', type=int, required=False, default=0.0001)
     args = parser.parse_args()
 
-    return args.data_file_path, args.model_path, args.num_epochs
+    return args.data_file_path, args.model_path, args.num_epochs, args.gen_lr, args.critic_lr
 
-file_path, model_path, num_epochs = argparse_helper()
+file_path, model_path, num_epochs, gen_lr, critic_lr = argparse_helper()
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
 ##
@@ -87,8 +89,8 @@ else:
     generator = torch.load(f'{model_path}/generator.pth')
     critic = torch.load(f'{model_path}/critic.pth')
 
-d_lr = 0.0001/5 # Llama suggests using lr < 10 times the original for fine tuning
-g_lr = 0.0001/5 # Llama suggests using lr < 10 times the original for fine tuning
+d_lr = gen_lr # Llama suggests using lr < 10 times the original for fine tuning
+g_lr = critic_lr # Llama suggests using lr < 10 times the original for fine tuning
 optimizer_d = optim.Adam(critic.parameters(), lr=d_lr, betas=(0.0, 0.9))
 optimizer_g = optim.Adam(generator.parameters(), lr=g_lr, betas=(0.0, 0.9))
 

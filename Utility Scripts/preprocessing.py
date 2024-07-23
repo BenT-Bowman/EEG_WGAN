@@ -122,6 +122,12 @@ def main():
     # print(patient)
     patient = classification_full(data=patient,skip_first=real_skip, window_size=usable_window, skip=seq_length, window=seq_length)
     control = classification_full(data=control,skip_first=real_skip, window_size=usable_window, skip=seq_length, window=seq_length)
+    
+    patient = np.asarray(patient)
+    control = np.asarray(control)
+    control = scale_neg_one(scale(control))
+    patient = scale_neg_one(scale(patient))
+
     print("Finished: ", patient.shape, control.shape)
     np.save(fr'{save_file_directory}/patient_cls',patient )
     np.save(fr'{save_file_directory}/normal_cls',control )

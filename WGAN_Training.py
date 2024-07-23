@@ -8,14 +8,18 @@ import numpy as np
 from torch.utils.data import TensorDataset, DataLoader, random_split
 import argparse
 
+# TODO: Offer option to continue training a saved model.
+
 def argparse_helper():
     parser = argparse.ArgumentParser(description='Process some files.')
     parser.add_argument('--data_file_path', type=str, required=True, help='Path to the input file. Data should be of .npy file type.')
+    parser.add_argument('--model_path', type=str, required=False, default=None, help='Path to existing saved model.')
+    parser.add_argument('--num_epochs', type=int, required=False, default=100, help='Number of epochs to train models for.')
     args = parser.parse_args()
 
-    return args.data_file_path
+    return args.data_file_path, args.model_path, args.num_epochs
 
-file_path = argparse_helper()
+file_path, model_path, num_epochs = argparse_helper()
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
 ##
@@ -41,15 +45,18 @@ train_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
 
 LAMBDA_GP = 10 
-num_epochs = 5
+# num_epochs = 100
 latent_vector_size = 100 
 critic_repeat = 1
+s_time = 15
 
 ##
 # Training Prep
 ##
 
 def gradient_penalty(critic, real_samples, fake_samples, device='cuda'):
+    # real_samples=real_samples.view(real_samples.size(0), 1, 19, 500)
+    # fake_samples=fake_samples.view(fake_samples.size(0), 1, 19, 500)
     alpha = torch.rand_like(real_samples, device=device)
 
     interpolates = alpha * real_samples + (1 - alpha) * fake_samples
@@ -73,11 +80,15 @@ def gradient_penalty(critic, real_samples, fake_samples, device='cuda'):
 
 # generator = Generator(seq_length=500).to(device)
 # critic =  Critic(seq_length=500).to(device)
-generator = Generator(seq_length=500).to(device)
-critic =  Critic().to(device)
+if model_path is None:
+    generator = Generator().to(device)
+    critic =  Critic().to(device)
+else:
+    generator = torch.load(f'{model_path}/generator.pth')
+    critic = torch.load(f'{model_path}/critic.pth')
 
-d_lr = 0.0001
-g_lr = 0.0001
+d_lr = 0.0001/5 # Llama suggests using lr < 10 times the original for fine tuning
+g_lr = 0.0001/5 # Llama suggests using lr < 10 times the original for fine tuning
 optimizer_d = optim.Adam(critic.parameters(), lr=d_lr, betas=(0.0, 0.9))
 optimizer_g = optim.Adam(generator.parameters(), lr=g_lr, betas=(0.0, 0.9))
 
@@ -86,6 +97,7 @@ optimizer_g = optim.Adam(generator.parameters(), lr=g_lr, betas=(0.0, 0.9))
 ##
 
 from tqdm import tqdm
+from time import sleep
 try:
     for epoch in range(num_epochs):
         avg_d=[]
@@ -130,6 +142,8 @@ try:
             avg_g.append(g_loss.item())
             pbar.set_description(f"Epoch {epoch} Gen loss: {g_loss.item()} Critic loss: {d_loss.item()} ")
         print(f"\033[31mEpoch {epoch} Gen loss: {sum(avg_g)/len(avg_g)} Critic loss: {sum(avg_d)/len(avg_d)} \033[0m")
+        print(f"Sleeping for {s_time}")
+        sleep(s_time)
 finally:
     import os
     while True:

@@ -7,7 +7,7 @@ from modules.DCGAN import Generator, Critic
 import numpy as np
 from torch.utils.data import TensorDataset, DataLoader, random_split
 import argparse
-
+torch.cuda.device(0)
 # TODO: Offer option to continue training a saved model.
 
 def argparse_helper():

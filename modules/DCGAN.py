@@ -85,17 +85,15 @@ class Generator(nn.Module):
             nn.Linear(256, num_channels*seq_length),  # Output layer: Match the flattened data shape
             Reshape(1, num_channels, seq_length),
             nn.Conv2d(1, 32, kernel_size=(num_channels, 1), padding=(num_channels//2, 0)),
-            nn.GELU(),
+            nn.ReLU(inplace=True),
             nn.Conv2d(32, 32, kernel_size=(1, 19), padding=(0, 19//2)),
-            nn.GELU(),
+            nn.ReLU(inplace=True),
             nn.Conv2d(32, 16, kernel_size=(num_channels, 1), padding=(num_channels//2, 0)),
-            nn.GELU(),
+            nn.ReLU(inplace=True),
             nn.Conv2d(16, 16, kernel_size=(1, 19), padding=(0, 19//2)),
-            nn.GELU(),
+            nn.ReLU(inplace=True),
             nn.Conv2d(16, 1, kernel_size=(1,1)),
             nn.Tanh()
-
-            # nn.Tanh()  # Tanh activation to output values between -1 and 1
         )
 
     def forward(self, z):

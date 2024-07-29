@@ -28,11 +28,15 @@ Use a sequence length of 600.
 
 Usage: The script requires one command-line argument:
 
-* data_file_path: The path to the input file. The file should be of .npy type.
-Example Command:
+--data_file_path: Required. Path to the input file in .npy format.
+--model_path: Optional. Path to an existing saved model. Default is None.
+--num_epochs: Optional. Number of epochs to train models for. Default is 100.
+--gen_lr and --critic_lr: Optional. Learning rates for the generator and critic, respectively. Default is 0.0001.
+--sleep: Optional. Time in seconds to pause the script after each epoch. Default is None.
+To run the script, simply provide the required --data_file_path argument and any optional arguments you'd like to customize. For example:
 
-`python process_data_file.py --data_file_path path/to/input_file.npy` \
-This command will process the file located at path/to/input_file.npy.
+``` python script.py --data_file_path path/to/data.npy --num_epochs 200 --gen_lr 0.001```
+Note that the script will automatically use default values for any arguments that are not provided.
 ### Notes
 * Ensure the path provided in --data_file_path is valid and points to a .npy file.
 ## Generate Data using model
@@ -53,3 +57,34 @@ Generate 1000 samples.
 
 ## Validation
 Modify path variables in Validation.ipynb and MLProject.ipynb and run all. (These processes my take upwards of 1-3 hours depending on the script ran.)
+
+## Process
+Training Configurations
+
+1. **Initial Training:** Train the model on MDD control data for 25 epochs with a learning rate of 1e-4.
+2. **OCD Patient and Normal Data Training (Iteration 1):** Train two separate models on the OCD patient and normal data sets using the model created in step 1. Train for 100 iterations with a learning rate of 1e-5.
+3. **OCD Patient and Normal Data Training (Iteration 2):** Train the two models created in step 2 again on the OCD patient and normal data sets, this time with a learning rate of 1e-6 and training for 100 iterations. \
+\
+This sequence of training configurations allows for a gradual refinement of the models, starting with a broad exploration of the MDD control data and then focusing on the OCD patient and normal data sets with increasingly fine-tuned parameters.
+# Results
+## *Generated Data* 
+[![Generated](pictures\generated.png)](generated.png)
+## *Real Data*
+[![Generated](pictures\real.png)](real.png)
+
+## ML Results
+
+### Higuchi Fractal Dimension
+[![Generated](pictures\hfd_result.png)](hfd_result.png)
+### Entropy
+[![Generated](pictures\entropy_result.png)](entropy_result.png)
+### Kats Fractal Dimension
+[![Generated](pictures\kfd_result.png)](kfd_result.png)
+### EEGNET Classification
+The model was trained on generated data and validated on real data. After training for 25 epochs, it achieved 100% accuracy.\
+[![Generated](pictures\EEGNET_conf_mat.png)](EEGNET_conf_mat.png)
+### EEGNET Discriminator
+This model was trained to disciminatet between real and generated samples, it hovers around 60-65% accuracy in this task.\
+[![Generated](pictures\EEGNET_discriminator.png)](EEGNET_discriminator.png)
+
+

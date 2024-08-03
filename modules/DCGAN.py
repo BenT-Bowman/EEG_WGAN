@@ -53,23 +53,41 @@ class SineActivation(nn.Module):
 #         z = self.decoder_linear(z)  # Decoder linear layer
 #         return z
 
+class Generator(nn.Module):
+    def __init__(self, seq_length=500, num_channels = 19):
+        super(Generator, self).__init__()
+        self.model = nn.Sequential(
+            nn.Linear(100, 256),  
+            nn.GELU(),
+            nn.Linear(256, 512),             
+            nn.GELU(),
+            nn.Linear(512, 1024),  
+            nn.GELU(),
+            nn.Linear(1024, 1024*2),  # Hidden layer
+            nn.GELU(),
+            nn.Linear(1024*2, num_channels*seq_length),  # Output layer: Match the flattened data shape
+            Reshape(1, num_channels, seq_length),
+            nn.Tanh()
+        )
+
+    def forward(self, z):
+        return self.model(z).view(z.size(0), -1)
+
 # class Generator(nn.Module):
 #     def __init__(self, seq_length=500, num_channels = 19):
 #         super(Generator, self).__init__()
 #         self.model = nn.Sequential(
-#             nn.Linear(100, 256),  
-#             nn.Linear(256, 512),             
-#             nn.Linear(512, 1024),  
-#             nn.Linear(1024, 1024*2),  # Hidden layer
-#             nn.GELU(),#(True),
-#             nn.Dropout(0.1),
-#             # nn.LayerNorm(1024),
-#             nn.Linear(1024*2, num_channels*seq_length),  # Output layer: Match the flattened data shape
+#             nn.Linear(100, 256),
+#             nn.Linear(256, num_channels*seq_length),  # Output layer: Match the flattened data shape
 #             Reshape(1, num_channels, seq_length),
-#             nn.Conv2d(1, 16, kernel_size=(num_channels, 1), padding=(num_channels//2, 0)),
-#             nn.GELU(),
+#             nn.Conv2d(1, 32, kernel_size=(num_channels, 1), padding=(num_channels//2, 0)),
+#             nn.ReLU(inplace=True),
+#             nn.Conv2d(32, 32, kernel_size=(1, 19), padding=(0, 19//2)),
+#             nn.ReLU(inplace=True),
+#             nn.Conv2d(32, 16, kernel_size=(num_channels, 1), padding=(num_channels//2, 0)),
+#             nn.ReLU(inplace=True),
 #             nn.Conv2d(16, 16, kernel_size=(1, 19), padding=(0, 19//2)),
-#             nn.GELU(),
+#             nn.ReLU(inplace=True),
 #             nn.Conv2d(16, 1, kernel_size=(1,1)),
 #             nn.Tanh()
 #         )
@@ -77,75 +95,53 @@ class SineActivation(nn.Module):
 #     def forward(self, z):
 #         return self.model(z).view(z.size(0), -1)
 
-class Generator(nn.Module):
-    def __init__(self, seq_length=500, num_channels = 19):
-        super(Generator, self).__init__()
-        self.model = nn.Sequential(
-            nn.Linear(100, 256),
-            nn.Linear(256, num_channels*seq_length),  # Output layer: Match the flattened data shape
-            Reshape(1, num_channels, seq_length),
-            nn.Conv2d(1, 32, kernel_size=(num_channels, 1), padding=(num_channels//2, 0)),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(32, 32, kernel_size=(1, 19), padding=(0, 19//2)),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(32, 16, kernel_size=(num_channels, 1), padding=(num_channels//2, 0)),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(16, 16, kernel_size=(1, 19), padding=(0, 19//2)),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(16, 1, kernel_size=(1,1)),
-            nn.Tanh()
-        )
-
-    def forward(self, z):
-        return self.model(z).view(z.size(0), -1)
-
-class Critic(nn.Module):
-    def __init__(self, seq_length=500, num_channels = 19):
-        super(Critic, self).__init__()
-        self.model = nn.Sequential(
-            nn.Conv2d(1, 64, kernel_size=(num_channels, 1), padding=(num_channels//2, 0)),
-            nn.LeakyReLU(0.2),
-            nn.Conv2d(64, 64, kernel_size=(1, 19), padding=(0, 19//2)),
-            nn.LeakyReLU(0.2),
-            nn.Conv2d(64, 32, kernel_size=(num_channels, 1), padding=(num_channels//2, 0)),
-            nn.LeakyReLU(0.2),
-            nn.Conv2d(32, 32, kernel_size=(1, 19), padding=(0, 19//2)),
-            nn.LeakyReLU(0.2),
-            nn.Flatten(),
-            nn.Linear(32*seq_length*num_channels, 512),
-            nn.LeakyReLU(0.2),
-            nn.Linear(512, 1)
-        )
-
-    def forward(self, x):
-        x=x.view(x.size(0), 1, 19, 500)
-        return self.model(x)
-
 # class Critic(nn.Module):
-#     def __init__(self, seq_length=500, num_channels=19):
+#     def __init__(self, seq_length=500, num_channels = 19):
 #         super(Critic, self).__init__()
-#         self.seq_length = seq_length
-#         self.num_channels = num_channels
 #         self.model = nn.Sequential(
-#             nn.Linear(num_channels*seq_length, 1024*2),  # Input layer: Match the flattened data shape
-#             nn.LeakyReLU(0.2, inplace=True),
-#             nn.Dropout(0.5),
-#             nn.Linear(1024*2, 1024),  # Hidden layer
-#             nn.LeakyReLU(0.2, inplace=True),
-
-#             nn.Linear(1024, 512),  # Hidden layer
-#             nn.LeakyReLU(0.2, inplace=True),
-#             nn.Dropout(0.5),
-#             nn.Linear(512, 256),  # Hidden layer
-#             nn.LeakyReLU(0.2, inplace=True),
-#             nn.Dropout(0.5),
-#             nn.Linear(256, 1),  # Output layer
+#             nn.Conv2d(1, 64, kernel_size=(num_channels, 1), padding=(num_channels//2, 0)),
+#             nn.LeakyReLU(0.2),
+#             nn.Conv2d(64, 64, kernel_size=(1, 19), padding=(0, 19//2)),
+#             nn.LeakyReLU(0.2),
+#             nn.Conv2d(64, 32, kernel_size=(num_channels, 1), padding=(num_channels//2, 0)),
+#             nn.LeakyReLU(0.2),
+#             nn.Conv2d(32, 32, kernel_size=(1, 19), padding=(0, 19//2)),
+#             nn.LeakyReLU(0.2),
+#             nn.Flatten(),
+#             nn.Linear(32*seq_length*num_channels, 512),
+#             nn.LeakyReLU(0.2),
+#             nn.Linear(512, 1)
 #         )
 
 #     def forward(self, x):
-#         if x.size(1) != self.num_channels*self.seq_length:
-#             x = x.view(x.size(0), -1)
+#         x=x.view(x.size(0), 1, 19, 500)
 #         return self.model(x)
+
+class Critic(nn.Module):
+    def __init__(self, seq_length=500, num_channels=19):
+        super(Critic, self).__init__()
+        self.seq_length = seq_length
+        self.num_channels = num_channels
+        self.model = nn.Sequential(
+            nn.Linear(num_channels*seq_length, 1024*2),  # Input layer: Match the flattened data shape
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Dropout(0.5),
+            nn.Linear(1024*2, 1024),  # Hidden layer
+            nn.LeakyReLU(0.2, inplace=True),
+
+            nn.Linear(1024, 512),  # Hidden layer
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Dropout(0.5),
+            nn.Linear(512, 256),  # Hidden layer
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Dropout(0.5),
+            nn.Linear(256, 1),  # Output layer
+        )
+
+    def forward(self, x):
+        if x.size(1) != self.num_channels*self.seq_length:
+            x = x.view(x.size(0), -1)
+        return self.model(x)
     
 
 # class Generator(nn.Module):

@@ -26,10 +26,11 @@ def full(data: np.ndarray, **kwargs) -> np.ndarray: # TODO: Use only second 20 s
 
 def scale(data: np.ndarray)->np.ndarray:
     data_array = []
+    excess_array = []
     compare = 100
     for signal in tqdm(data):
         if signal.max() > compare or abs(signal.min()) > compare:
-            continue
+            excess_array.append(signal)
         data_array.append(signal)
     data_array = np.asarray(data_array)
     print(data_array.mean(), data_array.std(), data_array.shape)
@@ -40,7 +41,7 @@ def scale_neg_one(data: np.ndarray)->np.ndarray:
     data = data - data.min()
     return (data / data.max()) * 2 -1
 
-def classification_full(data: np.ndarray, skip_first, window_size, **kwargs):
+def classification_full(data: np.ndarray, skip_first, window_size, fix_largest, **kwargs):
     skip_first = skip_first * 250
     window_size = window_size * 250
     # use_data: np.ndarray = data[skip_first:skip_first+window_size]
@@ -48,11 +49,15 @@ def classification_full(data: np.ndarray, skip_first, window_size, **kwargs):
     # print(np.asarray(data).shape)
     # print(use_data)
     # print(skip_first, skip_first+window_size)
-    for signal in tqdm(data):
-        signal = signal[:, skip_first:skip_first+window_size]
+    cut_data = np.array(data)[:, :, skip_first:skip_first+window_size]
+    x, y, z = np.unravel_index(np.argmax(cut_data), cut_data.shape)
+    cut_data[x, y, z] = (cut_data[x, y, z+1]+cut_data[x, y, z-1])/2
+
+    for signal in tqdm(cut_data):
+    #     signal = signal[:, skip_first:skip_first+window_size]
         for result_window in sliding_window(signal, original_length=window_size, **kwargs):
             temp.append(result_window)
-    # print(temp.shape)
+
     return np.asarray(temp)
 
 ##
@@ -98,8 +103,8 @@ def main():
 
     # control = full(control, skip=gen_skip, window=seq_length)
     # patient = full(patient, skip=gen_skip, window=seq_length)
-    patient = classification_full(data=patient, skip_first=real_skip, window_size=usable_window, skip=gen_skip, window=seq_length)
-    control = classification_full(data=control, skip_first=real_skip, window_size=usable_window, skip=gen_skip, window=seq_length)
+    patient = classification_full(data=patient, skip_first=real_skip, window_size=usable_window, skip=gen_skip, window=seq_length, fix_largest=False)
+    control = classification_full(data=control, skip_first=real_skip, window_size=usable_window, skip=gen_skip, window=seq_length, fix_largest=False)
 
     patient = np.asarray(patient)
     control = np.asarray(control)
@@ -120,8 +125,8 @@ def main():
         else:
             control.append(np.loadtxt(os.path.join(file_path, file)))
     # print(patient)
-    patient = classification_full(data=patient,skip_first=real_skip, window_size=usable_window, skip=seq_length, window=seq_length)
-    control = classification_full(data=control,skip_first=real_skip, window_size=usable_window, skip=seq_length, window=seq_length)
+    patient = classification_full(data=patient,skip_first=real_skip, window_size=usable_window, skip=seq_length, window=seq_length, fix_largest=False)
+    control = classification_full(data=control,skip_first=real_skip, window_size=usable_window, skip=seq_length, window=seq_length, fix_largest=True)
     
     patient = np.asarray(patient)
     control = np.asarray(control)

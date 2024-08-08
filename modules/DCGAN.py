@@ -77,48 +77,52 @@ class SineActivation(nn.Module):
 #     def forward(self, z):
 #         return self.model(z).view(z.size(0), -1)
 
+#Bayazit
+# Generator Model
 class Generator(nn.Module):
-    def __init__(self, seq_length=500, num_channels = 19):
+    def __init__(self, seq_length=500, num_channels=19):
         super(Generator, self).__init__()
         self.model = nn.Sequential(
             nn.Linear(100, 256),
-            nn.Linear(256, num_channels*seq_length),  # Output layer: Match the flattened data shape
+            nn.Linear(256, num_channels * seq_length),
             Reshape(1, num_channels, seq_length),
-            nn.Conv2d(1, 32, kernel_size=(num_channels, 1), padding=(num_channels//2, 0)),
+            nn.Conv2d(1, 32, kernel_size=(num_channels, 1), padding=(num_channels // 2, 0)),
             nn.ReLU(inplace=True),
-            nn.Conv2d(32, 32, kernel_size=(1, 19), padding=(0, 19//2)),
+            nn.Conv2d(32, 32, kernel_size=(1, 19), padding=(0, 19 // 2)),
             nn.ReLU(inplace=True),
-            nn.Conv2d(32, 16, kernel_size=(num_channels, 1), padding=(num_channels//2, 0)),
+            nn.Conv2d(32, 16, kernel_size=(num_channels, 1), padding=(num_channels // 2, 0)),
             nn.ReLU(inplace=True),
-            nn.Conv2d(16, 16, kernel_size=(1, 19), padding=(0, 19//2)),
+            nn.Conv2d(16, 16, kernel_size=(1, 19), padding=(0, 19 // 2)),
             nn.ReLU(inplace=True),
-            nn.Conv2d(16, 1, kernel_size=(1,1)),
-            nn.Tanh()
+            nn.Conv2d(16, 1, kernel_size=(1, 1)),
+            nn.Tanh()  # Output activation function
         )
 
     def forward(self, z):
         return self.model(z).view(z.size(0), -1)
 
+# Critic Model
 class Critic(nn.Module):
-    def __init__(self, seq_length=500, num_channels = 19):
+    def __init__(self, seq_length=500, num_channels=19):
         super(Critic, self).__init__()
         self.model = nn.Sequential(
-            nn.Conv2d(1, 64, kernel_size=(num_channels, 1), padding=(num_channels//2, 0)),
+            nn.Conv2d(1, 64, kernel_size=(num_channels, 1), padding=(num_channels // 2, 0)),
             nn.LeakyReLU(0.2),
-            nn.Conv2d(64, 64, kernel_size=(1, 19), padding=(0, 19//2)),
+            nn.Conv2d(64, 64, kernel_size=(1, 19), padding=(0, 19 // 2)),
             nn.LeakyReLU(0.2),
-            nn.Conv2d(64, 32, kernel_size=(num_channels, 1), padding=(num_channels//2, 0)),
+            nn.AvgPool2d(kernel_size=(2, 2)),
+            nn.Conv2d(64, 32, kernel_size=(num_channels, 1), padding=(num_channels // 2, 0)),
             nn.LeakyReLU(0.2),
-            nn.Conv2d(32, 32, kernel_size=(1, 19), padding=(0, 19//2)),
+            nn.Conv2d(32, 32, kernel_size=(1, 19), padding=(0, 19 // 2)),
             nn.LeakyReLU(0.2),
             nn.Flatten(),
-            nn.Linear(32*seq_length*num_channels, 512),
+            nn.Linear(72000, 512),
             nn.LeakyReLU(0.2),
             nn.Linear(512, 1)
         )
 
     def forward(self, x):
-        x=x.view(x.size(0), 1, 19, 500)
+        x = x.view(x.size(0), 1, 19, 500)  # Adjust the input shape if needed
         return self.model(x)
 
 # class Critic(nn.Module):

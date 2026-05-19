@@ -3,12 +3,8 @@ import glob
 from scipy.signal import welch
 import torch
 
-# ---------------------------------------------------------
-# USER SETS THESE TWO LINES ONLY
-# ---------------------------------------------------------
 real_files  = glob.glob(r"training_data\5_sec_seq_1_sec_skip\Patient\*.npy")
 synth_files = glob.glob(r"gen_20\patient\generated_data_*.npy")
-# ---------------------------------------------------------
 
 FS = 256
 NPERSEG = 256
@@ -60,11 +56,9 @@ def compute_psd_set(file_list):
     return freqs, psd_mean, psd_std
 
 
-# ---- Compute PSD summaries ----
 freqs, psd_real_mean,  psd_real_std  = compute_psd_set(real_files)
 _,     psd_syn_mean,   psd_syn_std   = compute_psd_set(synth_files)
 
-# ---- Save to a single NPZ ----
 np.savez(
     "mdd_psd_summary_fig4.npz",
     freqs=freqs,

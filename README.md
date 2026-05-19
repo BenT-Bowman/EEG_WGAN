@@ -71,4 +71,4 @@ Modify path variables in Validation.ipynb and MLProject.ipynb and run all. (Thes
 Training Configurations
 
 1. **Initial Training:** Train the model on MDD control data for 10 epochs with a learning rate of 1e-4.
-2. **OCD Patient and Normal Data Training (Iteration 1):** Train two separate models on the OCD patient and normal data sets using the model created in step 1. Train for 1000 iterations with a learning rate of 1e-5. Note: Signal snippets with any value over 100 were removed from the Generator training dataset.
+2. **Patient and Normal Data Training (Iteration 1):** Train two separate models on the patient and normal data sets using the model created in step 1. Train for 1000 iterations with a learning rate of 1e-5. Note: Signal snippets with any value over 100 were removed from the Generator training dataset.

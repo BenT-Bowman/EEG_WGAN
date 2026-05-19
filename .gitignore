@@ -2,7 +2,6 @@ Dataset/
 extra_models/
 gen_20/
 output/
-pictures/
 training_data/
 *.npz
 *.png

@@ -155,8 +155,45 @@ def minmax_scale_per_sample(data):
         data_scaled[i] = 2 * (data[i] - min_val) / (max_val - min_val) - 1
     return data_scaled
 
+import numpy as np
+from scipy.signal import iirnotch, lfilter
 
-def bandpass_filter(data, fs, lowcut=1.0, highcut=40.0, order=4):
+def apply_notch_filter(data, fs=500, f0=50, Q=30):
+    """
+    Applies a notch filter to remove a specified frequency from EEG data.
+
+    Parameters:
+    - data: numpy array of shape (batch_size, channels, time) or (channels, time)
+    - fs: Sampling frequency in Hz (default is 500)
+    - f0: Frequency to be removed (default is 50 Hz)
+    - Q: Quality factor (default is 30)
+
+    Returns:
+    - filtered_data: Notch-filtered EEG data
+    """
+    # Check if the data is 2D or 3D
+    if len(data.shape) == 2:
+        data = np.expand_dims(data, axis=0)  # Add a batch dimension (treat as a single batch)
+
+    # Create the notch filter
+    b, a = iirnotch(f0, Q, fs)
+    
+    # Initialize an array for the filtered data
+    filtered_data = np.zeros_like(data)
+    
+    # Apply the notch filter to each channel for each batch
+    for batch in range(data.shape[0]):  # Loop over each batch
+        for i in range(data.shape[1]):  # Loop over each channel
+            filtered_data[batch, i, :] = lfilter(b, a, data[batch, i, :])
+
+    # If the data was originally 2D, remove the batch dimension
+    if len(data.shape) == 3 and data.shape[0] == 1:
+        filtered_data = filtered_data[0]
+
+    return filtered_data
+
+
+def bandpass_filter(data, fs, lowcut=0.5, highcut=70.0, order=4):
     """Applies a zero-phase Butterworth bandpass filter to 3D EEG data."""
     nyquist = 0.5 * fs
     low, high = lowcut / nyquist, highcut / nyquist
@@ -173,20 +210,28 @@ model_paths, save_locations, num_samples_to_generate, num_iterations = argparse_
 
 for model_path, save_location in zip(model_paths, save_locations):
     generator = torch.load(model_path, map_location="cuda")
+    print(generator)
     generator.eval()
     os.makedirs(save_location, exist_ok=True)
     
     for i in range(num_iterations):
-        noise = torch.randn(num_samples_to_generate, 8032, device="cuda")
+        noise = torch.randn(num_samples_to_generate, 1, 16432, device="cuda")
         
         with torch.no_grad():
-            generated_data = generator(noise).view(num_samples_to_generate, 19, -1)
+            generated_data = generator(noise).view(num_samples_to_generate, -1)
+            
         generated_data_np = generated_data.cpu().numpy()
-        # generated_data_np = bandpass_filter(generated_data_np, fs=256)
-        generated_data_np=gaussian_smooth(generated_data_np)
+        generated_data_np = bandpass_filter(generated_data_np, fs=256)
+        filtered_data_np = apply_notch_filter(generated_data_np, fs=256, f0=50, Q=30)
+
+        # generated_data_np=gaussian_smooth(generated_data_np)
         generated_data_np = minmax_scale_per_sample(generated_data_np)
-        print(generated_data_np[0].min())
+        print(generated_data_np[0].min(), generated_data_np.shape)
         
         file_path = os.path.join(save_location, f'generated_data_{i}.npy')
         np.save(file_path, generated_data_np)
         print(f'Saved: {file_path}')
+
+"""
+Patient: 25 epochs at lambda 15, 20 epochs at lambda 5
+"""

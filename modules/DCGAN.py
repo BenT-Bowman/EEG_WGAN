@@ -180,241 +180,303 @@ class ResidualBlock(nn.Module):
         out = self.gelu2(out)
         
         return out + identity  # Residual connection
+    
+# Define a small conv fusion block to process concatenated features.
+# class FusionBlock(nn.Module):
+#     def __init__(self, in_channels, out_channels, kernel_size=3):
+#         super(FusionBlock, self).__init__()
+#         # padding so that spatial dims are preserved
+#         self.conv = spectral_norm(
+#             nn.Conv2d(in_channels, out_channels, kernel_size=kernel_size, padding=kernel_size//2)
+#         )
+#         self.gelu = nn.GELU()
+#     def forward(self, x):
+#         return self.gelu(self.conv(x))
 
+# class Generator(nn.Module):
+#     def __init__(self, seq_length=1025, num_channels=19, latent_vector_size=4100):
+#         """
+#         We assume the input to the UNet will have shape [B, 1, 19, 1025].
+#         We downsample only along the width dimension (1025) while keeping 19 intact.
+#         """
+#         super(Generator, self).__init__()
+        
+#         # ================================================================
+#         # Encoder
+#         # ================================================================
+#         # Block 1: from [B,1,19,1025] -> [B,8,19,257]
+#         # Using kernel=(1,27), stride=(1,4) and padding to preserve height.
+#         self.enc1_conv = spectral_norm(
+#             nn.Conv2d(1, 8, kernel_size=(1,27), stride=(1,4), padding=(0,13))
+#         )
+#         self.enc1_activation = nn.GELU()
+        
+#         # Block 2: [B,8,19,257] -> [B,16,19,129]
+#         self.enc2_conv = spectral_norm(
+#             nn.Conv2d(8, 16, kernel_size=(1,3), stride=(1,2), padding=(0,1))
+#         )
+#         self.enc2_activation = nn.GELU()
+        
+#         # Block 3: [B,16,19,129] -> [B,32,19,65]
+#         self.enc3_res = ResidualBlock(16, 32, kernel_size=(1,9), stride=(1,2))
+        
+#         # Block 4: [B,32,19,65] -> [B,64,19,33]
+#         self.enc4_res = ResidualBlock(32, 64, kernel_size=(1,3), stride=(1,2))
+        
+#         # ================================================================
+#         # Bottleneck
+#         # ================================================================
+#         # [B,64,19,33] -> [B,128,19,17]
+#         self.bottleneck_conv = spectral_norm(
+#             nn.Conv2d(64, 128, kernel_size=(1,3), stride=(1,2), padding=(0,1))
+#         )
+#         self.bottleneck_activation = nn.GELU()
+        
+#         # ================================================================
+#         # Decoder
+#         # ================================================================
+#         # Decoder block 1:
+#         # Upconv: [B,128,19,17] -> [B,64,19,33]
+#         self.dec1_upconv = spectral_norm(
+#             nn.ConvTranspose2d(128, 64, kernel_size=(1,3), stride=(1,2), padding=(0,1))
+#         )
+#         self.dec1_activation = nn.GELU()
+#         # Fusion with encoder 4 ([B,64,19,33] skip connection)
+#         # After concatenation, channels become 64+64 = 128, then fuse down to 64.
+#         self.dec1_fusion = FusionBlock(128, 64)
+        
+#         # Decoder block 2:
+#         # Upconv: [B,64,19,33] -> [B,32,19,65]
+#         self.dec2_upconv = spectral_norm(
+#             nn.ConvTranspose2d(64, 32, kernel_size=(1,3), stride=(1,2), padding=(0,1))
+#         )
+#         self.dec2_activation = nn.GELU()
+#         # Skip connection from encoder 3 ([B,32,19,65]), so fuse 32+32 -> 32.
+#         self.dec2_fusion = FusionBlock(64, 32)
+        
+#         # Decoder block 3:
+#         # Upconv: [B,32,19,65] -> [B,16,19,129]
+#         self.dec3_upconv = spectral_norm(
+#             nn.ConvTranspose2d(32, 16, kernel_size=(1,3), stride=(1,2), padding=(0,1))
+#         )
+#         self.dec3_activation = nn.GELU()
+#         # Skip connection from encoder 2 ([B,16,19,129]), fuse 16+16 -> 16.
+#         self.dec3_fusion = FusionBlock(32, 16)
+        
+#         # Decoder block 4:
+#         # Upconv: [B,16,19,129] -> [B,8,19,257]
+#         self.dec4_upconv = spectral_norm(
+#             nn.ConvTranspose2d(16, 8, kernel_size=(1,3), stride=(1,2), padding=(0,1))
+#         )
+#         self.dec4_activation = nn.GELU()
+#         # Skip connection from encoder 1 ([B,8,19,257]), fuse 8+8 -> 8.
+#         self.dec4_fusion = FusionBlock(16, 8)
+        
+#         # Decoder block 5 (Final upsampling):
+#         # Upconv: [B,8,19,257] -> [B,1,19,1025]
+#         self.dec5_upconv = spectral_norm(
+#             nn.ConvTranspose2d(8, 1, kernel_size=(1,27), stride=(1,4), padding=(0,13))
+#         )
+#         # Use Tanh to get output in range [-1, 1]
+#         self.out_activation = nn.Tanh()
+
+#     def forward(self, x):
+#         # x shape: [B,1,19,1025]
+#         # ---------------------------
+#         # Encoder
+#         enc1 = self.enc1_activation(self.enc1_conv(x))  
+#         # enc1 shape: [B,8,19,257]
+        
+#         enc2 = self.enc2_activation(self.enc2_conv(enc1))
+#         # enc2 shape: [B,16,19,129]
+        
+#         enc3 = self.enc3_res(enc2)
+#         # enc3 shape: [B,32,19,65]  (ResidualBlock includes its own activation)
+        
+#         enc4 = self.enc4_res(enc3)
+#         # enc4 shape: [B,64,19,33]
+        
+#         # ---------------------------
+#         # Bottleneck
+#         bottleneck = self.bottleneck_activation(self.bottleneck_conv(enc4))
+#         # bottleneck shape: [B,128,19,17]
+        
+#         # ---------------------------
+#         # Decoder
+#         dec1 = self.dec1_activation(self.dec1_upconv(bottleneck))
+#         # dec1 shape: [B,64,19,33]
+#         # Skip connection from encoder 4:
+#         dec1 = torch.cat([dec1, enc4], dim=1)  # shape: [B,64+64=128,19,33]
+#         dec1 = self.dec1_fusion(dec1)           # fuse to 64 channels
+        
+#         dec2 = self.dec2_activation(self.dec2_upconv(dec1))
+#         # dec2 shape: [B,32,19,65]
+#         dec2 = torch.cat([dec2, enc3], dim=1)    # [B,32+32=64,19,65]
+#         dec2 = self.dec2_fusion(dec2)            # fuse to 32 channels
+        
+#         dec3 = self.dec3_activation(self.dec3_upconv(dec2))
+#         # dec3 shape: [B,16,19,129]
+#         dec3 = torch.cat([dec3, enc2], dim=1)    # [B,16+16=32,19,129]
+#         dec3 = self.dec3_fusion(dec3)            # fuse to 16 channels
+        
+#         dec4 = self.dec4_activation(self.dec4_upconv(dec3))
+#         # dec4 shape: [B,8,19,257]
+#         dec4 = torch.cat([dec4, enc1], dim=1)    # [B,8+8=16,19,257]
+#         dec4 = self.dec4_fusion(dec4)            # fuse to 8 channels
+        
+#         # Final upsampling to get back to full width 1025
+#         out = self.dec5_upconv(dec4)
+#         out = self.out_activation(out)
+#         # out shape: [B,1,19,1025]
+#         return out
 class Generator(nn.Module):
-    def __init__(self, seq_length=500, num_channels=19, latent_vector_size=8032):
+    def __init__(self, seq_length=1025, num_channels=19, latent_vector_size=4100):
         super(Generator, self).__init__()
         self.model = nn.Sequential(
             Reshape(1, 1, latent_vector_size),
+            
             nn.Conv2d(1, 8, kernel_size=(1, 27), stride=(1, 4)),
             nn.GELU(),
-            nn.LayerNorm([8, 1, 2002]),
-            nn.Conv2d(8, 8, kernel_size=(1, 3), stride=(1, 2)),
+            nn.LayerNorm([8, 1, 4102]),
+            
+            nn.Conv2d(8, 16, kernel_size=(1, 3), stride=(1, 2)),
             nn.GELU(),
-            nn.LayerNorm([8, 1, 1000]),
-
-            ResidualBlock(8, 16, kernel_size=(1, 9), stride=(1, 2)),
-            nn.LayerNorm([16, 1, 500]),
-            ResidualBlock(16, 16, kernel_size=(1, 5)),
-            nn.LayerNorm([16, 1, 500]),
-            ResidualBlock(16, 16, kernel_size=(1, 5)),
-            nn.LayerNorm([16, 1, 500]),
-            ResidualBlock(16, 16, kernel_size=(1, 3)),
-
-            nn.Conv2d(16, 32, kernel_size=1),
-            nn.GELU(),
-            nn.LayerNorm([32, 1, 500]),
-
+            nn.LayerNorm([16, 1, 2050]),
+            
+            ResidualBlock(16, 32, kernel_size=(1, 9), stride=(1, 2)),
+            nn.LayerNorm([32, 1, 1025]),
+            
             nn.ConvTranspose2d(32, 32, kernel_size=(num_channels, 1)),
             nn.GELU(),
-            nn.LayerNorm([32, 19, 500]),
-
             ResidualBlock(32, 32, kernel_size=(19, 1)),
-            nn.LayerNorm([32, 19, 500]),
-            ResidualBlock(32, 32, kernel_size=(19, 1)),
-            nn.LayerNorm([32, 19, 500]),
-
-            nn.Conv2d(32, 1, kernel_size=1),
-            nn.Tanh(),
+            nn.LayerNorm([32, 19, 1025]),
+            
+            ResidualBlock(32, 32, kernel_size=(1, 21)),
+            nn.LayerNorm([32, 19, 1025]),
+            
+            ResidualBlock(32, 64, kernel_size=(9, 1)),
+            nn.LayerNorm([64, 19, 1025]),
+            
+            ResidualBlock(64, 64, kernel_size=(1, 19)),
+            nn.LayerNorm([64, 19, 1025]),
+            
+            ResidualBlock(64, 64, kernel_size=(19, 1)),
+            nn.LayerNorm([64, 19, 1025]),
+            
+            ResidualBlock(64, 64, kernel_size=(1, 9)),
+            nn.LayerNorm([64, 19, 1025]),
+            
+            nn.Conv2d(64, 1, kernel_size=(1, 1)),
+            nn.Tanh()
         )
 
     def forward(self, x):
-        x = self.model(x)
-        return x.view(x.size(0), -1)
+        return self.model(x)
 
+
+ 
 
 import torch.nn.utils.spectral_norm as spectral_norm
 
 class Critic(nn.Module):
-    def __init__(self, seq_length=500, num_channels=19):
+    def __init__(self, seq_length=1025, num_channels=19):
         super(Critic, self).__init__()
         self.model = nn.Sequential(
-            # nn.Conv2d(1, 8, kernel_size=(num_channels, 1)),
-            # nn.BatchNorm2d(8),
-            # nn.ELU(),
-
-            nn.Conv2d(1, 16, kernel_size=(1, 19), stride = (1, 9)),
+            ResidualBlock(1, 8, kernel_size=(1, 27)),
+            nn.LayerNorm([8, num_channels, seq_length]),
+            nn.AvgPool2d(kernel_size=(1, 2)),
+            
+            ResidualBlock(8, 8, kernel_size=(1, 19)),
+            nn.LayerNorm([8, num_channels, seq_length // 2]),
+            nn.AvgPool2d(kernel_size=(1, 2)),
+            
+            ResidualBlock(8, 16, kernel_size=(1, 9)),
+            nn.LayerNorm([16, num_channels, seq_length // 4]),
+            nn.AvgPool2d(kernel_size=(1, 2)),
+            
+            ResidualBlock(16, 32, kernel_size=(19, 1)),
+            nn.LayerNorm([32, num_channels, seq_length // 8]),
+            
+            ResidualBlock(32, 32, kernel_size=(9, 1)),
+            nn.LayerNorm([32, num_channels, seq_length // 8]),
+            
+            ResidualBlock(32, 32, kernel_size=(3, 1)),
+            nn.LayerNorm([32, num_channels, seq_length // 8]),
+            
+            nn.Conv2d(32, 32, kernel_size=(19, 1)),
             nn.GELU(),
-            nn.LayerNorm([16, 19, 54]),
-            nn.Conv2d(16, 16, kernel_size=(1, 9), stride = (1, 5)),
-            nn.GELU(),
-            nn.LayerNorm([16, 19, 10]),
-
-            nn.Conv2d(16, 32, kernel_size=(1, 3), stride = (1, 3)),
-            nn.GELU(),
-            nn.LayerNorm([32, 19, 3]),
-
-            ResidualBlock(32, 64, kernel_size=(19, 1)),
-            ResidualBlock(64, 64, kernel_size=(19, 1)),
-            nn.Conv2d(64, 128, kernel_size=(19,1)), # TODO: Consider ResidualBlock for spatial componetj
-            nn.LayerNorm([128, 1, 3]),
-
-            nn.GELU(),
+            nn.LayerNorm([32, 1, seq_length // 8]),
+            
+            ResidualBlock(32, 32, kernel_size=(1, 5)),
+            nn.LayerNorm([32, 1, seq_length // 8]),
+            
             nn.Flatten(),
-            nn.Linear(384, 128),
+            nn.Linear(32 * (seq_length // 8), 128),
             nn.GELU(),
-            nn.Linear(128, 128),
+            nn.LayerNorm([128]),
+            nn.Linear(128, 16),
             nn.GELU(),
-            nn.Linear(128, 1),
+            nn.LayerNorm([16]),
+            nn.Linear(16, 1)
         )
 
     def forward(self, x):
-        x = x.view(x.size(0), 1, 19, 500)  # Adjust the input shape if needed
+        x = x.view(x.size(0), 1, 19, -1)  # Ensure input shape is correct
         return self.model(x)
 
 # class Critic(nn.Module):
-#     def __init__(self, num_classes=1, num_channels=19, num_samples=500, dropout=0.5):
+#     def __init__(self, seq_length=1025, num_channels=19):
 #         super(Critic, self).__init__()
-        
-#         # 1. Temporal Convolution
-#         self.temporal_conv = nn.Sequential(
-#             nn.Conv2d(1, 16, kernel_size=(1, 64), stride=(1, 1), padding=(0, 32), bias=False),
-#             nn.BatchNorm2d(16)
-#         )
-        
-#         # 2. Depthwise Convolution
-#         self.depthwise_conv = nn.Sequential(
-#             nn.Conv2d(16, 32, kernel_size=(num_channels, 1), groups=16, bias=False),
-#             nn.BatchNorm2d(32),
-#             nn.ELU(),
-#             nn.AvgPool2d(kernel_size=(1, 4)),
-#             nn.Dropout(dropout)
-#         )
-        
-#         # 3. Separable Convolution
-#         self.separable_conv = nn.Sequential(
-#             nn.Conv2d(32, 32, kernel_size=(1, 16), stride=(1, 1), padding=(0, 8), bias=False),
-#             nn.BatchNorm2d(32),
-#             nn.ELU(),
-#             nn.AvgPool2d(kernel_size=(1, 8)),
-#             nn.Dropout(dropout)
-#         )
-        
-#         # Compute output size after convolutions
-#         out_dim = self._get_output_dim(num_channels, num_samples)
-        
-#         # 4. Fully Connected Layer
-#         self.fc = nn.Linear(out_dim, num_classes)
-
-#     def _get_output_dim(self, num_channels, num_samples):
-#         """Helper function to compute final feature map size dynamically."""
-#         x = torch.randn(1, 1, num_channels, num_samples)
-#         x = self.temporal_conv(x)
-#         x = self.depthwise_conv(x)
-#         x = self.separable_conv(x)
-#         return x.numel() // x.shape[0]  # Total feature size
-
-#     def forward(self, x):
-#         x = x.view(x.size(0), 1, 19, 500)  # Adjust the input shape if needed
-#         x = self.temporal_conv(x)
-#         x = self.depthwise_conv(x)
-#         x = self.separable_conv(x)
-#         x = x.view(x.size(0), -1)  # Flatten
-#         x = self.fc(x)
-#         return x
-
-# class Critic(nn.Module):
-#     def __init__(self, seq_length=500, num_channels=19):
-#         super(Critic, self).__init__()
-#         self.seq_length = seq_length
-#         self.num_channels = num_channels
 #         self.model = nn.Sequential(
-#             nn.Linear(num_channels*seq_length, 1024*2),  # Input layer: Match the flattened data shape
-#             nn.LeakyReLU(0.2, inplace=True),
-#             nn.Dropout(0.5),
-#             nn.Linear(1024*2, 1024),  # Hidden layer
-#             nn.LeakyReLU(0.2, inplace=True),
+#             ResidualBlock(1, 8, kernel_size=(1, 27)),
+#             nn.LayerNorm([8, 19, seq_length]),
+#             nn.AvgPool2d(kernel_size=(1, 2)),
 
-#             nn.Linear(1024, 512),  # Hidden layer
-#             nn.LeakyReLU(0.2, inplace=True),
-#             nn.Dropout(0.5),
-#             nn.Linear(512, 256),  # Hidden layer
-#             nn.LeakyReLU(0.2, inplace=True),
-#             nn.Dropout(0.5),
-#             nn.Linear(256, 1),  # Output layer
-#         )
+#             ResidualBlock(8, 8, kernel_size=(19, 1)),
+#             nn.LayerNorm([8, 19, seq_length//2]),
 
-#     def forward(self, x):
-#         if x.size(1) != self.num_channels*self.seq_length:
-#             x = x.view(x.size(0), -1)
-#         return self.model(x)
-    
+#             ResidualBlock(8, 8, kernel_size=(1, 19)),
+#             nn.LayerNorm([8, 19, seq_length//2]),
+#             nn.AvgPool2d(kernel_size=(1, 2)),
 
-# class Generator(nn.Module):
-#     def __init__(self, z_dim: int = 100, out_channels: int = 1, filters: list = [16, 16, 8], kernel_size: int = 6, num_samples: int = 500):
-#         super().__init__()
-#         self.model = nn.Sequential(
-#             nn.Linear(z_dim, filters[0] * num_samples // 4),
+#             ResidualBlock(8, 16, kernel_size=(19, 1)),
+#             nn.LayerNorm([16, 19, seq_length//4]),
+
+#             ResidualBlock(16, 16, kernel_size=(1, 9)),
+#             nn.LayerNorm([16, 19, seq_length//4]),
+#             nn.AvgPool2d(kernel_size=(1, 2)),
+
+#             ResidualBlock(16, 16, kernel_size=(19, 1)),
+#             nn.LayerNorm([16, 19, (seq_length//8)]),
+
+#             nn.Conv2d(16, 16, kernel_size=(19,1)), # TODO: Consider ResidualBlock for spatial componetj
 #             nn.GELU(),
-#             nn.Unflatten(1, (1, filters[0], num_samples // 4)),
-            
+#             nn.LayerNorm([16, 1, (seq_length//8)]),
+#             nn.AvgPool2d(kernel_size=(1, 2)),
 
-#             nn.ConvTranspose2d(1, out_channels=filters[1], kernel_size=(1, kernel_size), stride=(1, 2), padding=(0, kernel_size // 2-1)),
-#             nn.GELU(),
-#             # nn.BatchNorm2d(filters[1]),
-
-#             nn.ConvTranspose2d(filters[1], out_channels=filters[2], kernel_size=(19, 1), stride=(1, 1), groups=filters[2]),
-#             nn.GELU(),
-#             # nn.BatchNorm2d(filters[2]),
-
-#             nn.ConvTranspose2d(filters[2], out_channels=filters[0], kernel_size=(1, kernel_size), stride=(1, 2), padding=(0, kernel_size // 2-1)),
-#             nn.GELU(),
-#             # nn.BatchNorm2d(filters[0]),
-
-#             nn.Conv2d(filters[0], out_channels=1, kernel_size=(16, 1)),
-#             # nn.ReLU(),
-#             # nn.BatchNorm2d(1),
-            
-#             nn.Tanh(),
-#         )
-
-#     def forward(self, z):
-#         # z=z
-#         return self.model(z).view(z.size(0), -1)
-    
-
-
-
-# class Critic(nn.Module):
-#     def __init__(self, in_channels:int= 1, filters: list = [8, 16, 16], kernel_size:int = 5,  dropout_rate=0.5, num_classes=1):
-#         super().__init__()
-#         pool_size, num_samples = 2, 500
-#         self.model = nn.Sequential(
-#             nn.Conv2d(in_channels, out_channels=filters[0], kernel_size=(1, kernel_size), padding=(0, kernel_size// 2), bias=False),
-#             nn.BatchNorm2d(filters[0], False),
-#             self._regularization(pool_size, dropout_rate),
-
-#             nn.Conv2d(filters[0], out_channels=filters[1], kernel_size=(in_channels, 1),groups=filters[0], bias=False),
-#             nn.BatchNorm2d(filters[1], False),
-#             self._regularization(pool_size, dropout_rate),
-
-#             nn.Conv2d(filters[1], out_channels= filters[2], kernel_size=(1, 1), bias=False),
-#             nn.BatchNorm2d(filters[2], False),
-#             self._regularization(pool_size, dropout_rate),
-
-#             nn.Conv2d(filters[2], out_channels= filters[2], kernel_size=(1, 16), padding=(0, 8), bias=False),
-#             nn.BatchNorm2d(filters[2], False),
-#             self._regularization(pool_size, dropout_rate),
+#             ResidualBlock(16, 16, kernel_size=(1, 5)),
+#             nn.LayerNorm([16, 1, (seq_length//16)]),
 
 #             nn.Flatten(),
+#             nn.Linear(16*(seq_length//16), 1),
+#             # nn.GELU(),
+#             # # nn.LayerNorm([128]),
 
-#             nn.Linear(9424, num_classes)
+#             # nn.Linear(128, 16),
+#             # nn.GELU(),
+#             # # nn.LayerNorm([16]),
+
+#             # nn.Linear(16, 1),
 #         )
-#         # print(filters[2] * ((num_samples // pool_size) // pool_size))
-#     def _regularization(self, pool_size, dropout_rate):
-#         return nn.Sequential(
-#             nn.ELU(),
-#             nn.AvgPool2d((1, pool_size)),
-#             nn.Dropout(dropout_rate),
-#             )
 
 #     def forward(self, x):
-#         x=x.view(x.size(0), 1, 19, 500)
+#         x = x.view(x.size(0), 1, 19, -1)  # Adjust the input shape if needed
 #         return self.model(x)
 
 if __name__ == "__main__":
-    latent_vector_size = 251*32
-    noise = torch.randn(32,  latent_vector_size)
+    print((8016+200)*2)
+    latent_vector_size = (8016+200)*2
+    noise = torch.randn(32,  1, latent_vector_size)
     g = Generator(latent_vector_size=latent_vector_size)
     c = Critic()
     print((out:=g(noise)).shape)

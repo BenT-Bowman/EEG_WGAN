@@ -9,29 +9,26 @@ from torch.utils.data import TensorDataset, DataLoader, random_split
 import argparse
 torch.cuda.device(0)
 
-
-"""
-TODO: Devise model that learns one non-descript channel. Train on data.
-
-Devise model that extends one-channel model with MoE type of layers. With each expert focused one specific channel, following the non-descript channel creation.
-"""
-
 def argparse_helper():
     parser = argparse.ArgumentParser(description='Process some files.')
     parser.add_argument('--data_file_path', type=str, required=True, help='Path to the input file. Data should be of .npy file type.')
     parser.add_argument('--model_path', type=str, required=False, default=None, help='Path to existing saved model.')
+    parser.add_argument('--sub_model_path', '-s', type=str, required=False, default=None, help='Path to existing saved model.')
     parser.add_argument('--num_epochs', type=int, required=False, default=100, help='Number of epochs to train models for.')
     parser.add_argument('--gen_lr', type=float, required=False,    default=0.0001)
     parser.add_argument('--critic_lr', type=float, required=False, default=0.0001)
     parser.add_argument('--sleep', type=int, required=False, default=None, help='In case you don\'t want to cook your computer during long training loops.')
     parser.add_argument('--lambda_gp', '-l', type=int, required=False, default=10, help='Lambda, for GP')
     parser.add_argument('--critic_train_frequency', '-f', type=int, required=False, default=5, help='WGAN hyperparameter that controls how many times the critic is trained for how many times the generatoris trained.')
-    parser.add_argument('--latent_vector_size', '-v', type=int, required=False, default=8032, help='Size of the latent vector for the generator.')
+    parser.add_argument('--latent_vector_size', '-v', type=int, required=False, default=1025, help='Size of the latent vector for the generator.')
+    parser.add_argument('--seq_length', '-q', type=int, required=False, default=1025, help='Sequence Length.')
+    
     args = parser.parse_args()
 
-    return args.data_file_path, args.model_path, args.num_epochs, args.gen_lr, args.critic_lr, args.sleep, args.lambda_gp, args.critic_train_frequency, args.latent_vector_size
+    return args.data_file_path, args.model_path, args.num_epochs, args.gen_lr, args.critic_lr, args.sleep, args.lambda_gp, args.critic_train_frequency, args.latent_vector_size, args.sub_model_path, args.seq_length
 
-file_path, model_path, num_epochs, gen_lr, critic_lr, sleep_time, lambda_gp, freq, latent_vector_size = argparse_helper()
+file_path, model_path, num_epochs, gen_lr, critic_lr, sleep_time, lambda_gp, freq, latent_vector_size, sub_model_path, seq_length = argparse_helper()
+# print(sub_model_path)
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
 ##
@@ -51,7 +48,7 @@ data_tensor = data_tensor.view(data_tensor.size(0), -1)
  
 dataset = TensorDataset(data_tensor)
  
-batch_size = 64
+batch_size = 32
 train_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
 
@@ -67,8 +64,8 @@ critic_repeat = freq
 
 def gradient_penalty(critic, real_samples, fake_samples, device='cuda'):
     # Ensure real and fake samples are on the same device
-    real_samples=real_samples.view(real_samples.size(0), 1, 19, 500)
-    fake_samples=fake_samples.view(fake_samples.size(0), 1, 19, 500)
+    real_samples=real_samples.view(real_samples.size(0), 1, 19, seq_length)
+    fake_samples=fake_samples.view(fake_samples.size(0), 1, 19, seq_length)
     real_samples = real_samples.to(device)
     fake_samples = fake_samples.to(device)
 
@@ -99,7 +96,15 @@ def gradient_penalty(critic, real_samples, fake_samples, device='cuda'):
 
 # generator = Generator(seq_length=500).to(device)
 # critic =  Critic(seq_length=500).to(device)
-if model_path is None:
+# print(sub_model_path)
+if sub_model_path is not None:
+    print(fr'{sub_model_path}\generator.pth')
+    print(r"test\critic.pth")
+    sub_generator = torch.load(fr'test\generator.pth')
+    sub_critic = torch.load(fr'test\critic.pth')
+    generator = Generator(latent_vector_size=latent_vector_size, pretrained_gen=sub_generator).to(device)
+    critic =  Critic(pretrained_critic=sub_critic).to(device)
+elif model_path is None:
     generator = Generator(latent_vector_size=latent_vector_size).to(device)
     critic =  Critic().to(device)
 else:
@@ -108,6 +113,7 @@ else:
 
 d_lr = gen_lr # Llama suggests using lr < 10 times the original for fine tuning
 g_lr = critic_lr # Llama suggests using lr < 10 times the original for fine tuning
+print(d_lr, g_lr, type(d_lr), type(g_lr))
 optimizer_d = optim.Adam(critic.parameters(), lr=d_lr, betas=(0.0, 0.9))
 optimizer_g = optim.Adam(generator.parameters(), lr=g_lr, betas=(0.0, 0.9))
 
@@ -140,6 +146,9 @@ def check_gradient_explosion_or_vanishing(grad_norms, threshold_explode=1e3, thr
 
 from tqdm import tqdm
 from time import sleep
+import matplotlib.pyplot as plt
+
+# exit()
 try:
     for epoch in range(num_epochs):
         avg_d=[]
@@ -150,17 +159,20 @@ try:
         pbar = tqdm(train_loader)
         for batch_idx, (real_samples, *_) in enumerate(pbar):
             real_samples = real_samples.to(device) #.view(real_samples.size(0), 1, 19, 500)
-            # real_samples = real_samples.view(real_samples.size(0), 1, 19, 500)[:, :, 0, :].view(real_samples.size(0), -1)
+            # print(real_samples.shape)
+            # real_samples = real_samples.view(real_samples.size(0), 1, 19, 500)[:, :, :2, :].view(real_samples.size(0), -1)
             # real_samples = real_samples.view(real_samples.size(0), 19, -1)
             critic.train()
             generator.eval()
             for _ in range(critic_repeat):
                 # Fake samples
-                noise = torch.randn((real_samples.size(0), latent_vector_size), device=device)
+                noise = torch.randn((real_samples.size(0), 1, 19, 1025), device=device)
+                # noise = torch.randn((real_samples.size(0), latent_vector_size), device=device)
                 
                 fake_samples = generator(noise)
                 
                 real_preds = critic(real_samples)
+                
                 fake_preds = critic(fake_samples.detach())
 
                 gp = gradient_penalty(critic, real_samples, fake_samples, device)
@@ -177,7 +189,8 @@ try:
                 #     p.data.clamp_(-0.01, 0.01)
             critic.eval()
             generator.train()
-            noise = torch.randn(batch_size, latent_vector_size, device=device)
+            noise = torch.randn(batch_size, 1, 19, 1025, device=device)
+            # noise = torch.randn(batch_size, latent_vector_size, device=device)
             fake_samples = generator(noise)
 
             outputs = critic(fake_samples)
@@ -199,6 +212,32 @@ try:
         if sleep_time is not None:
             print(f"Sleeping for {sleep_time}")
             sleep(sleep_time)
+
+        # Save a generated sample as EEG time-series plots
+        generator.eval()
+        with torch.no_grad():
+            sample_noise = torch.randn(1, 1, 19, 1025, device=device)
+            # sample_noise = torch.randn(1, latent_vector_size, device=device)
+            generated_sample = generator(sample_noise).cpu().numpy()
+
+        generated_sample = generated_sample.squeeze()  # Shape: (19, 1025)
+
+        plt.figure(figsize=(12, 6))
+        time_steps = np.arange(generated_sample.shape[1])
+
+        for channel in range(generated_sample.shape[0]):  # Iterate over EEG channels
+            plt.plot(time_steps, generated_sample[channel], label=f'Channel {channel + 1}', linewidth=0.5)
+
+        plt.xlabel("Time Steps")
+        plt.ylabel("Amplitude")
+        plt.title(f"Generated EEG Sample - Epoch {epoch}")
+        plt.legend(loc='upper right', fontsize='small')
+        plt.grid()
+
+        img_path = f"generated_eeg_sample_epoch_{epoch}.png"
+        plt.savefig(img_path, dpi=300)
+        plt.close()
+        print(f"Saved generated EEG sample plot at: {img_path}")
 finally:
     import os
     print(file_path)

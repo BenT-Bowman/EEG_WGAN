@@ -1,0 +1,14 @@
+Dataset/
+extra_models/
+gen_20/
+output/
+pictures/
+training_data/
+*.npz
+*.png
+*.svg
+*.docx
+*.pdf
+split.py
+test.py
+single_channel_training.py

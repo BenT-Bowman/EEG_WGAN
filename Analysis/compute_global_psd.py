@@ -3,8 +3,8 @@ import glob
 from scipy.signal import welch
 import torch
 
-real_files  = glob.glob(r"training_data\5_sec_seq_1_sec_skip\Patient\*.npy")
-synth_files = glob.glob(r"gen_20\patient\generated_data_*.npy")
+real_files  = glob.glob(r"")
+synth_files = glob.glob(r"")
 
 FS = 256
 NPERSEG = 256

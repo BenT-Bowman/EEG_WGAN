@@ -7,8 +7,8 @@ import numpy as np
 from scipy.signal import correlate, correlation_lags
 from scipy.stats import pearsonr
 
-real_files  = glob.glob(r"training_data\5_sec_seq_1_sec_skip\Patient\*.npy")
-synth_files = glob.glob(r"gen_20\patient\generated_data_*.npy")
+real_files  = glob.glob(r"")
+synth_files = glob.glob(r"")
 
 def load_eeg_data(file_list):
     """

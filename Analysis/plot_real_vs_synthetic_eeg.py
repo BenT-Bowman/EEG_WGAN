@@ -3,8 +3,8 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 import torch
 
-real_path = r"training_data\5_sec_seq_1_sec_skip\Control\H S1 EC.npy"
-synth_path = r"gen_20\control\generated_data_0.npy"
+real_path = r""
+synth_path = r""
 
 real = np.load(real_path)        # shape: (channels, time)
 synth = np.load(synth_path)      # shape: (channels, time)

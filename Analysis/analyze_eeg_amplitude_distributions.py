@@ -6,8 +6,8 @@ import matplotlib.pyplot as plt
 
 
 
-real_files  = glob.glob(r"training_data\5_sec_seq_1_sec_skip\Control\*.npy")
-synth_files = glob.glob(r"gen_20\control\generated_data_*.npy")
+real_files  = glob.glob(r"")
+synth_files = glob.glob(r"")
 save_path   = "amp_distributions_control.npz"
 
 
